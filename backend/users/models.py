@@ -20,6 +20,7 @@ class CustomUser(AbstractUser):
     )
     is_subscribed = models.BooleanField("Оформлена подписка", default="False")
     USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ['username', "first_name", "last_name", "password"]
 
     class Meta:
         verbose_name = "Пользователь"

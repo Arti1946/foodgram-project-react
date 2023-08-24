@@ -13,12 +13,12 @@ class Tag(models.Model):
         max_length=200,
     )
 
-    def __str__(self):
-        return self.name
-
     class Meta:
         verbose_name = "Тег"
         verbose_name_plural = "Теги"
+
+    def __str__(self):
+        return self.name, self.color, self.slug
 
 
 class Ingredient(models.Model):
@@ -33,6 +33,9 @@ class Ingredient(models.Model):
         verbose_name = "Ингредиент"
         verbose_name_plural = "Ингредиенты"
 
+    def __str__(self):
+        return self.name, self.measurement_unit
+
 
 class Recipe(models.Model):
     ingredients = models.ManyToManyField(
@@ -46,7 +49,6 @@ class Recipe(models.Model):
         Tag,
         through="RecipesTags",
         verbose_name="Тег",
-        verbose_name_plural="Теги",
         related_name="recipes",
     )
     image = models.ImageField(
@@ -76,13 +78,13 @@ class Recipe(models.Model):
     )
     pub_date = models.DateTimeField("Дата добавления", auto_now_add=True)
 
-    def __str__(self):
-        return self.name
-
     class Meta:
-        ordering = "-pub_date"
+        ordering = ["-pub_date"]
         verbose_name = "Рецепт"
         verbose_name_plural = "Рецепты"
+
+    def __str__(self):
+        return self.name
 
 
 class Follow(models.Model):
@@ -152,6 +154,9 @@ class ShopingCart(models.Model):
         verbose_name="Рецепт",
     )
 
+    def __str__(self):
+        return self.user, self.recipe
+
 
 class RecipesIngredients(models.Model):
     recipes = models.ForeignKey(
@@ -162,9 +167,9 @@ class RecipesIngredients(models.Model):
         on_delete=models.CASCADE,
         related_name="recipes_ingredient",
     )
-    amount = models.SmallPositiveIntegerField(
+    amount = models.PositiveSmallIntegerField(
         blank=False,
-        validators=MinValueValidator(1, "Слишком малое количество"),
+        validators=[MinValueValidator(1, "Слишком малое количество")],
     )
 
     class Meta:

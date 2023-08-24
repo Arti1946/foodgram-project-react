@@ -14,8 +14,8 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 
 from foodgram.models import (
-    CustomUser, Favorite, Follow, Ingredients, Recipes, RecipesIngredients,
-    ShopingCart, Tags,
+    CustomUser, Favorite, Follow, Ingredient, Recipe, RecipesIngredients,
+    ShopingCart, Tag,
 )
 
 from .filters import IngredientsFilter, RecipeFilter
@@ -27,7 +27,7 @@ from .serializers import (
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipes.objects.all()
+    queryset = Recipe.objects.all()
     permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = PageNumberPagination
     filter_backends = (DjangoFilterBackend,)
@@ -38,7 +38,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         query = (
-            Recipes.objects.select_related("author")
+            Recipe.objects.select_related("author")
             .prefetch_related("ingredients", "tags")
             .all()
         )
@@ -61,7 +61,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
         if request.method == "POST":
             if not Favorite.objects.filter(user=user, recipe=pk).exists():
-                recipe = get_object_or_404(Recipes, pk=pk)
+                recipe = get_object_or_404(Recipe, pk=pk)
                 serializer = FavoriteRecipeSerializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 serializer.save(user=user, recipe=recipe)
@@ -92,7 +92,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         if request.method == "POST":
             if not ShopingCart.objects.filter(user=user, recipe=pk).exists():
-                recipe = get_object_or_404(Recipes, pk=pk)
+                recipe = get_object_or_404(Recipe, pk=pk)
                 serializer = ShopingCartSerializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 serializer.save(user=user, recipe=recipe)
@@ -151,6 +151,7 @@ class UserViewSet(viewsets.ModelViewSet):
         instance = serializer.save()
         instance.set_password(instance.password)
         instance.save()
+        return instance
 
     @action(
         detail=False, methods=["get"], permission_classes=[IsAuthenticated]
@@ -229,15 +230,23 @@ class SubscribeApiView(APIView):
 
 class IngredientViewSet(viewsets.ModelViewSet):
     serializer_class = IngredientsSerializer
-    queryset = Ingredients.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    pagination_class = PageNumberPagination
+    queryset = Ingredient.objects.all()
+    permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend]
     filterset_class = IngredientsFilter
+    http_method_names = ["get"]
+    pagination_class = None
+
+    class Meta:
+        ordering = ["name"]
 
 
 class TagsViewSet(viewsets.ModelViewSet):
     serializer_class = TagsSerializer
-    queryset = Tags.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    pagination_class = PageNumberPagination
+    queryset = Tag.objects.all()
+    permission_classes = [AllowAny]
+    http_method_names = ["get"]
+    pagination_class = None
+
+    class Meta:
+        ordering = ["id"]

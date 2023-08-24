@@ -1,6 +1,6 @@
 from django_filters import rest_framework as filters
 
-from foodgram.models import Ingredients, Recipes, Tags
+from foodgram.models import Ingredient, Recipe, Tag
 
 
 class IngredientsFilter(filters.FilterSet):
@@ -8,14 +8,14 @@ class IngredientsFilter(filters.FilterSet):
 
     class Meta:
         fields = ("name", "measurement_unit", "id")
-        model = Ingredients
+        model = Ingredient
 
 
 class RecipeFilter(filters.FilterSet):
     author = filters.CharFilter()
     tags = filters.ModelMultipleChoiceFilter(
         field_name="tags__slug",
-        queryset=Tags.objects.all(),
+        queryset=Tag.objects.all(),
         label="Tags",
         to_field_name="slug",
     )
@@ -33,5 +33,5 @@ class RecipeFilter(filters.FilterSet):
         return queryset
 
     class Meta:
-        model = Recipes
+        model = Recipe
         fields = ("tags", "author", "is_favorited", "is_in_shopping_cart")
