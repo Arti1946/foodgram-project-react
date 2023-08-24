@@ -1,22 +1,24 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.serializers import SetPasswordSerializer
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 
-from .filters import IngredientsFilter, RecipeFilter
 from foodgram.models import (
     CustomUser, Favorite, Follow, Ingredients, Recipes, RecipesIngredients,
     ShopingCart, Tags,
 )
+
+from .filters import IngredientsFilter, RecipeFilter
 from .serializers import (
     CustomUserSerializer, FavoriteRecipeSerializer, FollowSerializer,
     FollowSerializerPost, IngredientsSerializer, RecipeSerializer,
@@ -35,9 +37,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ordering = ["-id"]
 
     def get_queryset(self):
-        query = Recipes.objects.prefetch_related(
-            "recipes_ingredients__ingredients", "tags", "author"
-        ).all()
+        query = (
+            Recipes.objects.select_related("author")
+            .prefetch_related("ingredients", "tags")
+            .all()
+        )
         return query
 
     def perform_create(self, serializer):
@@ -55,10 +59,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def favorite(self, request, pk):
         user = request.user
-        if not user.is_authenticated:
-            return Response(
-                "Вы не авторизованы", status=status.HTTP_401_UNAUTHORIZED
-            )
         if request.method == "POST":
             if not Favorite.objects.filter(user=user, recipe=pk).exists():
                 recipe = get_object_or_404(Recipes, pk=pk)
@@ -71,12 +71,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(
                 "Рецепт уже в избранном", status=status.HTTP_400_BAD_REQUEST
             )
-        if not Favorite.objects.filter(user=user, recipe=pk).exists():
+        if not Favorite.objects.filter(user=user, recipe=pk).delete():
             return Response(
                 "Рецепта нет в избранном", status=status.HTTP_400_BAD_REQUEST
             )
-        favorite = Favorite.objects.get(user=user, recipe=pk)
-        favorite.delete()
         return Response(
             "Рецепт удален из избранного", status=status.HTTP_204_NO_CONTENT
         )
@@ -104,12 +102,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(
                 "Рецепт уже в корзине", status=status.HTTP_400_BAD_REQUEST
             )
-        if not ShopingCart.objects.filter(user=user, recipe=pk).exists():
+        if not ShopingCart.objects.filter(user=user, recipe=pk).delete():
             return Response(
                 "Рецепта нет в корзине", status=status.HTTP_400_BAD_REQUEST
             )
-        favorite = ShopingCart.objects.get(user=user, recipe=pk)
-        favorite.delete()
         return Response(
             "Рецепт удален из корзины", status=status.HTTP_204_NO_CONTENT
         )
@@ -118,17 +114,20 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=False, methods=["get"], permission_classes=[IsAuthenticated]
     )
     def download_shopping_cart(self, request):
-        ingredients = []
+        shop_list = []
         user = get_object_or_404(CustomUser, username=request.user)
-        objects = (
+        ingredients = (
             RecipesIngredients.objects.filter(
                 recipes__shopping_recipe__user=user
             )
             .values("ingredients__name", "ingredients__measurement_unit")
             .annotate(amount=Sum("amount"))
         )
-        for object in objects:
-            ingredients.append(
+        return self.create_shoping_list(self, ingredients, shop_list)
+
+    def create_shoping_list(self, ingredients, shop_list: list):
+        for ingredient in ingredients:
+            shop_list.append(
                 "{name}({measurement_unit}) - {amount}\n".format(
                     name=object.get("ingredients__name"),
                     measurement_unit=object.get(
@@ -137,7 +136,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     amount=object.get("amount"),
                 )
             )
-        response = FileResponse(ingredients, content_type="text/plain")
+        response = FileResponse(shop_list, content_type="text/plain")
         return response
 
 
@@ -169,7 +168,6 @@ class UserViewSet(viewsets.ModelViewSet):
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        print(serializer.data["new_password"])
         user.set_password(serializer.data["new_password"])
         return Response("вы изменили свой пароль", status=status.HTTP_200_OK)
 
@@ -186,15 +184,16 @@ class UserViewSet(viewsets.ModelViewSet):
         return self.get_paginated_response(serializer.data)
 
 
-@api_view(["post", "delete"])
-def subscribe(request, pk):
-    user = request.user
-    author = get_object_or_404(CustomUser, id=pk)
-    if user.is_anonymous:
-        return Response(
-            "Вы не авторизованы", status=status.HTTP_401_UNAUTHORIZED
+class SubscribeApiView(APIView):
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["post", "delete"]
+
+    def post(self, request, pk):
+        user = request.user
+        author = get_object_or_404(CustomUser, id=pk)
+        query = Follow.objects.filter(user=user, author=pk).annotate(
+            recipes_count=Count("author__recipe")
         )
-    if request.method == "POST":
         if user == author:
             return Response(
                 "Нельзя подписаться на себя",
@@ -202,7 +201,9 @@ def subscribe(request, pk):
             )
         if not Follow.objects.filter(user=user, author=pk).exists():
             serializer = FollowSerializerPost(
-                data=request.data, context={"request": request}
+                instance=query,
+                data=request.data,
+                context={"request": request},
             )
             if serializer.is_valid():
                 serializer.save(user=user, author=author)
@@ -211,17 +212,19 @@ def subscribe(request, pk):
             "Вы уже подписаны на этого пользователя",
             status=status.HTTP_400_BAD_REQUEST,
         )
-    if not Follow.objects.filter(user=user, author=pk).exists():
+
+    def delete(self, request, pk):
+        user = request.user
+        author = get_object_or_404(CustomUser, id=pk)
+        if not Follow.objects.filter(user=user, author=pk).delete():
+            return Response(
+                "Вы не подписаны на этого пользователя",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
-            "Вы не подписаны на этого пользователя",
-            status=status.HTTP_400_BAD_REQUEST,
+            f"Вы отписались от автора {author.username}",
+            status=status.HTTP_204_NO_CONTENT,
         )
-    follow = Follow.objects.filter(author=pk, user=user)
-    follow.delete()
-    return Response(
-        f"Вы отписались от автора {author.username}",
-        status=status.HTTP_204_NO_CONTENT,
-    )
 
 
 class IngredientViewSet(viewsets.ModelViewSet):

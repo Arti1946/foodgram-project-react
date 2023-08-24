@@ -1,6 +1,6 @@
 version: '3.3'
 
-volumes: 
+volumes:
   pg_data:
   static:
   media:
@@ -31,8 +31,10 @@ services:
     volumes:
       - static:/staticfiles/
       - media:/app/media/
+      - ../docs/:/usr/share/nginx/html/api/docs/
     depends_on:
       - backend
+      - frontend
   backend:
     build:
       context: /backend

@@ -1,8 +1,9 @@
 from django.contrib import admin
 
-from .models import Ingredients, Recipes, Tags
+from .models import Favorite, Ingredients, Recipes, Tags
 
 
+@admin.register(Ingredients)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = (
         "name",
@@ -12,10 +13,12 @@ class IngredientAdmin(admin.ModelAdmin):
     empty_value_display = "-пусто-"
 
 
+@admin.register(Recipes)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "author",
+        "count_recipe",
     )
     list_filter = (
         "name",
@@ -24,8 +27,13 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     empty_value_display = "-пусто-"
 
+    def get_queryset(self, request):
+        Recipes.object.select_related("author").prefetch_related(
+            "ingredients", "tags"
+        ).all()
 
-RecipeAdmin.list_display += ("count_recipe",)
-admin.site.register(Ingredients, IngredientAdmin)
-admin.site.register(Recipes, RecipeAdmin)
+    def get_count_recipe(self):
+        return Favorite.objects.filter(recipe=self).count()
+
+
 admin.site.register(Tags)

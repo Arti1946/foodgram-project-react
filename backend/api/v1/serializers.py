@@ -1,7 +1,7 @@
 import base64
 
 import webcolors
-from djoser.serializers import UserCreateSerializer, UserSerializer
+from djoser.serializers import UserSerializer
 from rest_framework import serializers
 
 from django.core.files.base import ContentFile
@@ -92,7 +92,6 @@ class RecipeSerializerPost(serializers.ModelSerializer):
 
     def create(self, validated_data):
         ingredients = validated_data.pop("ingredients")
-        print(ingredients)
         tags = validated_data.pop("tags")
         recipe = Recipes.objects.create(**validated_data)
         for ingredient in ingredients:
@@ -126,6 +125,7 @@ class RecipeSerializerPost(serializers.ModelSerializer):
                 ingredients=current_ingredient, recipes=instance, amount=amount
             )
         instance.tags.set(tags)
+        super().update(instance)
         return instance
 
 
@@ -192,22 +192,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         ).exists()
 
 
-class UserCreateSerializer(UserCreateSerializer):
-    class Meta:
-        fields = (
-            "username",
-            "email",
-            "first_name",
-            "last_name",
-            "id",
-            "password",
-        )
-        model = CustomUser
-
-
 class FavoriteRecipeSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source="recipe.name", read_only=True)
-    cooking_time = serializers.CharField(
+    cooking_time = serializers.IntegerField(
         source="recipe.cooking_time", read_only=True
     )
     image = serializers.CharField(source="recipe.image", read_only=True)
@@ -250,7 +237,7 @@ class FollowSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(source="author.last_name")
     recipes = serializers.SerializerMethodField()
     is_subscribed = serializers.SerializerMethodField()
-    recipes_count = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField()
 
     class Meta:
         model = Follow
@@ -272,11 +259,6 @@ class FollowSerializer(serializers.ModelSerializer):
         if Follow.objects.filter(user=user, author=author).exists:
             return True
         return False
-
-    def get_recipes_count(self, obj):
-        author = obj.author
-        count = Recipes.objects.filter(author=author).count()
-        return count
 
     def get_recipes(self, obj):
         request = self.context.get("request")
