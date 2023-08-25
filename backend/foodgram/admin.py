@@ -15,8 +15,10 @@ class IngredientAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    def count_recipe(self):
-        return Favorite.objects.filter(recipe=self).count()
+
+    @admin.display(description="count_recipe")
+    def count_recipe(self, recipe):
+        return Favorite.objects.filter(recipe=recipe).count()
 
     list_display = (
         "name",
@@ -29,11 +31,6 @@ class RecipeAdmin(admin.ModelAdmin):
         "tags",
     )
     empty_value_display = "-пусто-"
-
-    def get_queryset(self, request):
-        Recipe.objects.select_related("author").prefetch_related(
-            "ingredients", "tags"
-        ).all()
 
 
 admin.site.register(Tag)

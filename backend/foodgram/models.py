@@ -18,7 +18,7 @@ class Tag(models.Model):
         verbose_name_plural = "Теги"
 
     def __str__(self):
-        return self.name, self.color, self.slug
+        return self.name
 
 
 class Ingredient(models.Model):
@@ -131,7 +131,7 @@ class Favorite(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user} {self.recipe}"
+        return {self.recipe}
 
 
 class ShopingCart(models.Model):
@@ -152,7 +152,7 @@ class ShopingCart(models.Model):
     )
 
     def __str__(self):
-        return self.user, self.recipe
+        return self.recipe
 
 
 class RecipesIngredients(models.Model):
@@ -187,4 +187,4 @@ class RecipesTags(models.Model):
     )
 
     def __str__(self):
-        return f"{self.recipe} {self.tag}"
+        return self.recipe
