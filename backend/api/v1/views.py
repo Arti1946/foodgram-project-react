@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db.models import Count, Sum
-from django.http import FileResponse
+from django.http import HttpResponse, HttpResponseNotFound
 from django.shortcuts import get_object_or_404
 
 from foodgram.models import (
@@ -110,34 +110,50 @@ class RecipeViewSet(viewsets.ModelViewSet):
             "Рецепт удален из корзины", status=status.HTTP_204_NO_CONTENT
         )
 
-    @action(
-        detail=False, methods=["get"], permission_classes=[IsAuthenticated]
-    )
-    def download_shopping_cart(self, request):
-        shop_list = []
-        user = get_object_or_404(CustomUser, username=request.user)
-        ingredients = (
-            RecipesIngredients.objects.filter(
-                recipes__shopping_recipe__user=user
-            )
-            .values("ingredients__name", "ingredients__measurement_unit")
-            .annotate(amount=Sum("amount"))
-        )
-        return self.create_shoping_list(self, ingredients, shop_list)
 
-    def create_shoping_list(self, ingredients, shop_list: list):
-        for ingredient in ingredients:
-            shop_list.append(
-                "{name}({measurement_unit}) - {amount}\n".format(
-                    name=object.get("ingredients__name"),
-                    measurement_unit=object.get(
-                        "ingredients__measurement_unit"
-                    ),
-                    amount=object.get("amount"),
+class DownloadShopCartView(APIView):
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get"]
+    pagination_class = None
+
+    def get(self, request):
+        file_location = "./media/shoping_cart.txt"
+
+        try:
+            user = request.user
+            ingredients = (
+                RecipesIngredients.objects.filter(
+                    recipes__shopping_recipe__user=user
                 )
+                .values("ingredients__name", "ingredients__measurement_unit")
+                .annotate(amount=Sum("amount"))
             )
-        response = FileResponse(shop_list, content_type="text/plain")
+            self.write_file(
+                ingredients=ingredients, file_location=file_location
+            )
+            with open(file_location, "r") as f:
+                file_data = f.read()
+            response = HttpResponse(file_data, content_type="text/plain")
+            response[
+                "Content-Disposition"
+            ] = 'attachment; filename="shoping_cart.txt"'
+        except IOError:
+            response = HttpResponseNotFound("File not find")
         return response
+
+    def write_file(self, ingredients, file_location):
+        with open(file_location, "w+") as f:
+            for ingredient in ingredients:
+                f.write(
+                    "{name}({measurement_unit}) - {amount}\n".format(
+                        name=ingredient.get("ingredients__name"),
+                        measurement_unit=ingredient.get(
+                            "ingredients__measurement_unit"
+                        ),
+                        amount=ingredient.get("amount"),
+                    )
+                )
+            f.close()
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -177,7 +193,9 @@ class UserViewSet(viewsets.ModelViewSet):
     )
     def subscriptions(self, request):
         user = request.user
-        follow = Follow.objects.filter(user=user)
+        follow = Follow.objects.filter(user=user).annotate(
+            recipes_count=Count("author__recipe")
+        )
         page = self.paginate_queryset(follow)
         serializer = FollowSerializer(
             page, context={"request": request}, many=True
@@ -188,13 +206,11 @@ class UserViewSet(viewsets.ModelViewSet):
 class SubscribeApiView(APIView):
     permission_classes = [IsAuthenticated]
     http_method_names = ["post", "delete"]
+    pagination_class = None
 
     def post(self, request, pk):
         user = request.user
         author = get_object_or_404(CustomUser, id=pk)
-        query = Follow.objects.filter(user=user, author=pk).annotate(
-            recipes_count=Count("author__recipe")
-        )
         if user == author:
             return Response(
                 "Нельзя подписаться на себя",
@@ -202,13 +218,14 @@ class SubscribeApiView(APIView):
             )
         if not Follow.objects.filter(user=user, author=pk).exists():
             serializer = FollowSerializerPost(
-                instance=query,
                 data=request.data,
                 context={"request": request},
             )
-            if serializer.is_valid():
+            if serializer.is_valid(raise_exception=True):
                 serializer.save(user=user, author=author)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(
+                    serializer.data, status=status.HTTP_201_CREATED
+                )
         return Response(
             "Вы уже подписаны на этого пользователя",
             status=status.HTTP_400_BAD_REQUEST,

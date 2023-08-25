@@ -40,13 +40,13 @@ class ResIngSerializator(serializers.ModelSerializer):
 
 
 class RecipesIngredientsSerializer(serializers.ModelSerializer):
-    ingredients = serializers.CharField(source="ingredients.name")
+    name = serializers.CharField(source="ingredients.name")
     measurement_unit = serializers.CharField(
         source="ingredients.measurement_unit"
     )
 
     class Meta:
-        fields = ("id", "ingredients", "measurement_unit", "amount")
+        fields = ("id", "name", "measurement_unit", "amount")
         model = RecipesIngredients
 
 
@@ -246,7 +246,6 @@ class FollowSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(source="author.last_name")
     recipes = serializers.SerializerMethodField()
     is_subscribed = serializers.SerializerMethodField()
-    recipes_count = serializers.IntegerField()
 
     class Meta:
         model = Follow
@@ -258,7 +257,6 @@ class FollowSerializer(serializers.ModelSerializer):
             "last_name",
             "is_subscribed",
             "recipes",
-            "recipes_count",
         )
 
     def get_is_subscribed(self, obj):
