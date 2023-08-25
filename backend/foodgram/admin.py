@@ -1,14 +1,8 @@
 from django.contrib import admin
 
 from .models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    Tag,
-    RecipeIngredient,
-    RecipeTag,
-    ShopingCart,
-    Follow,
+    Favorite, Follow, Ingredient, Recipe, RecipeIngredient, RecipeTag,
+    ShopingCart, Tag,
 )
 
 
@@ -24,7 +18,6 @@ class IngredientAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-
     list_display = (
         "name",
         "author",
@@ -43,7 +36,9 @@ class RecipeAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("author").prefetch_related("tags", "ingredients")
+        return qs.select_related("author").prefetch_related(
+            "tags", "ingredients"
+        )
 
 
 @admin.register(Follow)

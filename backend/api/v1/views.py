@@ -39,9 +39,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ordering = ["-id"]
 
     def get_queryset(self):
-        query = (
-            Recipe.objects.select_related("author")
-            .prefetch_related("ingredients", "tags")
+        query = Recipe.objects.select_related("author").prefetch_related(
+            "ingredients", "tags"
         )
         return query
 
@@ -126,23 +125,19 @@ class DownloadShopCartView(APIView):
             .values("ingredients__name", "ingredients__measurement_unit")
             .annotate(amount=Sum("amount"))
         )
-        buffer_data = self.write_to_buffer(
-            ingredients=ingredients
-        )
+        buffer_data = self.write_to_buffer(ingredients=ingredients)
         response = HttpResponse(buffer_data, content_type="StringIO/plain")
         return response
 
     def write_to_buffer(self, ingredients):
         in_memory = io.StringIO()
         for ingredient in ingredients:
-            in_memory += (
-                "{name}({measurement_unit}) - {amount}\n".format(
-                        name=ingredient.get("ingredients__name"),
-                        measurement_unit=ingredient.get(
-                            "ingredients__measurement_unit"
-                        ),
-                        amount=ingredient.get("amount"),
-                )
+            in_memory += "{name}({measurement_unit}) - {amount}\n".format(
+                name=ingredient.get("ingredients__name"),
+                measurement_unit=ingredient.get(
+                    "ingredients__measurement_unit"
+                ),
+                amount=ingredient.get("amount"),
             )
         return in_memory.getvalue()
 
@@ -199,7 +194,7 @@ class SubscribeApiView(APIView):
     permission_classes = [IsAuthenticated]
     http_method_names = ["post", "delete"]
     pagination_class = None
-    
+
     def post(self, request, pk):
         user = request.user
         author = get_object_or_404(CustomUser, id=pk)
