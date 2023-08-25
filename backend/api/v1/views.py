@@ -186,6 +186,7 @@ class UserViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.data["new_password"])
+        serializer.save()
         return Response("вы изменили свой пароль", status=status.HTTP_200_OK)
 
     @action(
