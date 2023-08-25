@@ -14,20 +14,16 @@ services:
     depends_on:
       - backend  
   frontend:
-    build:
-      context: /frontend
-      dockerfile: Dockerfile
+    image: arti1946/foodgram-frontend
     env_file: .env  
     command: cp -r /app/build/. /frontend_static/
     volumes:
       - static:/frontend_static
   nginx:
-    build:
-      context: /infra
-      dockerfile: Dockerfile
+    image: arti1946/foodgram-gateway
     env_file: .env
     ports:
-      - "8000:80"
+      - "8080:80"
     volumes:
       - static:/staticfiles/
       - media:/app/media/
@@ -36,9 +32,7 @@ services:
       - backend
       - frontend
   backend:
-    build:
-      context: /backend
-      dockerfile: Dockerfile
+    image: arti1946/foodgram-backend
     env_file: .env
     volumes: 
       - static:/backend_static
