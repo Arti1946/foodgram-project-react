@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import Favorite, Ingredient, Recipe, Tag
+from .models import (
+    Favorite,
+    Ingredient,
+    Recipe,
+    Tag,
+    RecipeIngredient,
+    RecipeTag,
+    ShopingCart,
+    Follow,
+)
 
 
 @admin.register(Ingredient)
@@ -16,10 +25,6 @@ class IngredientAdmin(admin.ModelAdmin):
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
 
-    @admin.display(description="count_recipe")
-    def count_recipe(self, recipe):
-        return Favorite.objects.filter(recipe=recipe).count()
-
     list_display = (
         "name",
         "author",
@@ -32,5 +37,37 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     empty_value_display = "-пусто-"
 
+    @admin.display(description="count_recipe")
+    def count_recipe(self, recipe):
+        return Favorite.objects.filter(recipe=recipe).count()
 
-admin.site.register(Tag)
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("author").prefetch_related("tags", "ingredients")
+
+
+@admin.register(Follow)
+class FollowAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "author",
+    )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("user")
+
+
+@admin.register(Follow)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "recipe",
+    )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("user")
+
+
+admin.site.register(Tag, RecipeIngredient, RecipeTag, ShopingCart)

@@ -132,8 +132,7 @@ class RecipeSerializerPost(serializers.ModelSerializer):
                 ingredients=current_ingredient, recipes=instance, amount=amount
             )
         instance.tags.set(tags)
-        super().update(instance, validated_data)
-        return instance
+        return super().update(instance, validated_data)
 
 
 class CustomUserSerializer(UserSerializer):
@@ -246,6 +245,7 @@ class FollowSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(source="author.last_name")
     recipes = serializers.SerializerMethodField()
     is_subscribed = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField()
 
     class Meta:
         model = Follow

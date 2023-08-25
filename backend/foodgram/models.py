@@ -37,14 +37,14 @@ class Ingredient(models.Model):
 class Recipe(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
-        through="RecipesIngredients",
+        through="RecipeIngredient",
         through_fields=("recipes", "ingredients"),
         related_name="recipes",
         verbose_name="Ингредиент",
     )
     tags = models.ManyToManyField(
         Tag,
-        through="RecipesTags",
+        through="RecipeTag",
         verbose_name="Тег",
         related_name="recipes",
     )
@@ -155,7 +155,7 @@ class ShopingCart(models.Model):
         return self.recipe
 
 
-class RecipesIngredients(models.Model):
+class RecipeIngredient(models.Model):
     recipes = models.ForeignKey(
         Recipe, on_delete=models.CASCADE, related_name="recipes_ingredients"
     )
@@ -178,7 +178,7 @@ class RecipesIngredients(models.Model):
         ]
 
 
-class RecipesTags(models.Model):
+class RecipeTag(models.Model):
     recipe = models.ForeignKey(
         Recipe, on_delete=models.CASCADE, related_name="recipe_tags"
     )

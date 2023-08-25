@@ -1,3 +1,5 @@
+import io
+
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.serializers import SetPasswordSerializer
 from rest_framework import status, viewsets
@@ -10,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db.models import Count, Sum
-from django.http import HttpResponse, HttpResponseNotFound
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
 from foodgram.models import (
@@ -40,7 +42,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         query = (
             Recipe.objects.select_related("author")
             .prefetch_related("ingredients", "tags")
-            .all()
         )
         return query
 
@@ -71,7 +72,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(
                 "Рецепт уже в избранном", status=status.HTTP_400_BAD_REQUEST
             )
-        if not Favorite.objects.filter(user=user, recipe=pk).delete():
+        if Favorite.objects.filter(user=user, recipe=pk).delete()[0] == 0:
             return Response(
                 "Рецепта нет в избранном", status=status.HTTP_400_BAD_REQUEST
             )
@@ -102,7 +103,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return Response(
                 "Рецепт уже в корзине", status=status.HTTP_400_BAD_REQUEST
             )
-        if not ShopingCart.objects.filter(user=user, recipe=pk).delete():
+        if ShopingCart.objects.filter(user=user, recipe=pk).delete()[0] == 0:
             return Response(
                 "Рецепта нет в корзине", status=status.HTTP_400_BAD_REQUEST
             )
@@ -117,43 +118,33 @@ class DownloadShopCartView(APIView):
     pagination_class = None
 
     def get(self, request):
-        file_location = "./media/shoping_cart.txt"
-
-        try:
-            user = request.user
-            ingredients = (
-                RecipesIngredients.objects.filter(
-                    recipes__shopping_recipe__user=user
-                )
-                .values("ingredients__name", "ingredients__measurement_unit")
-                .annotate(amount=Sum("amount"))
+        user = request.user
+        ingredients = (
+            RecipesIngredients.objects.filter(
+                recipes__shopping_recipe__user=user
             )
-            self.write_file(
-                ingredients=ingredients, file_location=file_location
-            )
-            with open(file_location, "r") as f:
-                file_data = f.read()
-            response = HttpResponse(file_data, content_type="text/plain")
-            response[
-                "Content-Disposition"
-            ] = 'attachment; filename="shoping_cart.txt"'
-        except IOError:
-            response = HttpResponseNotFound("File not find")
+            .values("ingredients__name", "ingredients__measurement_unit")
+            .annotate(amount=Sum("amount"))
+        )
+        buffer_data = self.write_to_buffer(
+            ingredients=ingredients
+        )
+        response = HttpResponse(buffer_data, content_type="StringIO/plain")
         return response
 
-    def write_file(self, ingredients, file_location):
-        with open(file_location, "w+") as f:
-            for ingredient in ingredients:
-                f.write(
-                    "{name}({measurement_unit}) - {amount}\n".format(
+    def write_to_buffer(self, ingredients):
+        in_memory = io.StringIO()
+        for ingredient in ingredients:
+            in_memory += (
+                "{name}({measurement_unit}) - {amount}\n".format(
                         name=ingredient.get("ingredients__name"),
                         measurement_unit=ingredient.get(
                             "ingredients__measurement_unit"
                         ),
                         amount=ingredient.get("amount"),
-                    )
                 )
-            f.close()
+            )
+        return in_memory.getvalue()
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -208,7 +199,7 @@ class SubscribeApiView(APIView):
     permission_classes = [IsAuthenticated]
     http_method_names = ["post", "delete"]
     pagination_class = None
-
+    
     def post(self, request, pk):
         user = request.user
         author = get_object_or_404(CustomUser, id=pk)
@@ -234,14 +225,13 @@ class SubscribeApiView(APIView):
 
     def delete(self, request, pk):
         user = request.user
-        author = get_object_or_404(CustomUser, id=pk)
-        if not Follow.objects.filter(user=user, author=pk).delete():
+        if Follow.objects.filter(user=user, author=pk).delete()[0] == 0:
             return Response(
                 "Вы не подписаны на этого пользователя",
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(
-            f"Вы отписались от автора {author.username}",
+            "Вы отписались от автора",
             status=status.HTTP_204_NO_CONTENT,
         )
 
