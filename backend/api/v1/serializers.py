@@ -257,6 +257,7 @@ class FollowSerializer(serializers.ModelSerializer):
             "last_name",
             "is_subscribed",
             "recipes",
+            "recipe_count",
         )
 
     def get_is_subscribed(self, obj):
