@@ -50,7 +50,7 @@ class FollowAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("user")
+        return qs.select_related("author")
 
 
 @admin.register(Follow)
