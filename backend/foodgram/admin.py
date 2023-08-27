@@ -50,7 +50,7 @@ class FollowAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("author")
+        return qs.select_related("author", "user")
 
 
 @admin.register(Favorite)
@@ -62,7 +62,7 @@ class FavoriteAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("recipe")
+        return qs.select_related("recipe", "user")
 
 
 @admin.register(Tag)
@@ -88,7 +88,7 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("ingredients")
+        return qs.select_related("ingredients", "recipe")
 
 
 @admin.register(RecipeTag)
@@ -101,7 +101,7 @@ class RecipeTagAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("tag")
+        return qs.select_related("tag", "recipe")
 
 
 @admin.register(ShopingCart)
@@ -114,4 +114,4 @@ class ShopingCartAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("recipe")
+        return qs.select_related("recipe", "user")
