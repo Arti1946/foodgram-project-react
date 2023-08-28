@@ -8,8 +8,8 @@ from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 
 from foodgram.models import (
-    CustomUser, Favorite, Follow, Ingredient, Recipe, RecipesIngredients,
-    RecipesTags, ShopingCart, Tag,
+    CustomUser, Favorite, Follow, Ingredient, Recipe, RecipeIngredient,
+    RecipeTag, ShopingCart, Tag,
 )
 
 
@@ -47,7 +47,7 @@ class RecipesIngredientsSerializer(serializers.ModelSerializer):
 
     class Meta:
         fields = ("id", "name", "measurement_unit", "amount")
-        model = RecipesIngredients
+        model = RecipeIngredient
 
 
 class TagsSerializer(serializers.ModelSerializer):
@@ -106,12 +106,12 @@ class RecipeSerializerPost(serializers.ModelSerializer):
             current_ingredient = get_object_or_404(
                 Ingredient, id=ingredient["id"]
             )
-            RecipesIngredients.objects.create(
+            RecipeIngredient.objects.create(
                 ingredients=current_ingredient, recipes=recipe, amount=amount
             )
         for tag in tags:
             current_tag = get_object_or_404(Tag, id=tag)
-            RecipesTags.objects.create(recipe=recipe, tag=current_tag)
+            RecipeTag.objects.create(recipe=recipe, tag=current_tag)
         return recipe
 
     def to_representation(self, recipe):
@@ -128,7 +128,7 @@ class RecipeSerializerPost(serializers.ModelSerializer):
             current_ingredient = get_object_or_404(
                 Ingredient, id=ingredient["id"]
             )
-            RecipesIngredients.objects.create(
+            RecipeIngredient.objects.create(
                 ingredients=current_ingredient, recipes=instance, amount=amount
             )
         instance.tags.set(tags)
@@ -257,7 +257,7 @@ class FollowSerializer(serializers.ModelSerializer):
             "last_name",
             "is_subscribed",
             "recipes",
-            "recipe_count",
+            "recipes_count",
         )
 
     def get_is_subscribed(self, obj):

@@ -16,7 +16,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
 from foodgram.models import (
-    CustomUser, Favorite, Follow, Ingredient, Recipe, RecipesIngredients,
+    CustomUser, Favorite, Follow, Ingredient, Recipe, RecipeIngredient,
     ShopingCart, Tag,
 )
 
@@ -119,7 +119,7 @@ class DownloadShopCartView(APIView):
     def get(self, request):
         user = request.user
         ingredients = (
-            RecipesIngredients.objects.filter(
+            RecipeIngredient.objects.filter(
                 recipes__shopping_recipe__user=user
             )
             .values("ingredients__name", "ingredients__measurement_unit")
@@ -132,12 +132,14 @@ class DownloadShopCartView(APIView):
     def write_to_buffer(self, ingredients):
         in_memory = io.StringIO()
         for ingredient in ingredients:
-            in_memory += "{name}({measurement_unit}) - {amount}\n".format(
-                name=ingredient.get("ingredients__name"),
-                measurement_unit=ingredient.get(
-                    "ingredients__measurement_unit"
-                ),
-                amount=ingredient.get("amount"),
+            in_memory.write(
+                "{name}({measurement_unit}) - {amount}\n".format(
+                    name=ingredient.get("ingredients__name"),
+                    measurement_unit=ingredient.get(
+                        "ingredients__measurement_unit"
+                    ),
+                    amount=ingredient.get("amount"),
+                )
             )
         return in_memory.getvalue()
 
