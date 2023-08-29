@@ -1,7 +1,6 @@
 import io
 
 from django_filters.rest_framework import DjangoFilterBackend
-from djoser.serializers import SetPasswordSerializer
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -22,9 +21,9 @@ from foodgram.models import (
 
 from .filters import IngredientsFilter, RecipeFilter
 from .serializers import (
-    CustomUserSerializer, FavoriteRecipeSerializer, FollowSerializer,
-    FollowSerializerPost, IngredientsSerializer, RecipeSerializer,
-    RecipeSerializerPost, ShopingCartSerializer, TagsSerializer,
+    FavoriteRecipeSerializer, FollowSerializer, FollowSerializerPost,
+    IngredientsSerializer, RecipeSerializer, RecipeSerializerPost,
+    ShopingCartSerializer, TagsSerializer,
 )
 
 
@@ -144,48 +143,16 @@ class DownloadShopCartView(APIView):
         return in_memory.getvalue()
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    serializer_class = CustomUserSerializer
-    queryset = CustomUser.objects.all()
-    http_method_names = ["get", "post"]
-    pagination_class = PageNumberPagination
-    permission_classes = [AllowAny]
+class SubscriptionsApiView(APIView, PageNumberPagination):
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get"]
 
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        instance.set_password(instance.password)
-        instance.save()
-        return instance
-
-    @action(
-        detail=False, methods=["get"], permission_classes=[IsAuthenticated]
-    )
-    def me(self, request):
-        serializer = CustomUserSerializer(request.user)
-        return Response(serializer.data)
-
-    @action(
-        detail=False, methods=["post"], permission_classes=[IsAuthenticated]
-    )
-    def set_password(self, request):
-        user = request.user
-        serializer = SetPasswordSerializer(
-            data=request.data, context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        user.set_password(serializer.data["new_password"])
-        serializer.save()
-        return Response("вы изменили свой пароль", status=status.HTTP_200_OK)
-
-    @action(
-        detail=False, methods=["get"], permission_classes=[IsAuthenticated]
-    )
-    def subscriptions(self, request):
+    def get(self, request):
         user = request.user
         follow = Follow.objects.filter(user=user).annotate(
             recipes_count=Count("author__recipe")
         )
-        page = self.paginate_queryset(follow)
+        page = self.paginate_queryset(follow, request, view=self)
         serializer = FollowSerializer(
             page, context={"request": request}, many=True
         )
@@ -205,16 +172,15 @@ class SubscribeApiView(APIView):
                 "Нельзя подписаться на себя",
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not Follow.objects.filter(user=user, author=pk).exists():
-            serializer = FollowSerializerPost(
-                data=request.data,
-                context={"request": request},
+        if not Follow.objects.filter(user=user, author=author).exists():
+            Follow.objects.create(user=user, author=author)
+            query = Follow.objects.filter(user=user).annotate(
+                recipes_count=Count("author__recipe")
             )
-            if serializer.is_valid(raise_exception=True):
-                serializer.save(user=user, author=author)
-                return Response(
-                    serializer.data, status=status.HTTP_201_CREATED
-                )
+            serializer = FollowSerializerPost(
+                query, context={"request": request}, many=True
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(
             "Вы уже подписаны на этого пользователя",
             status=status.HTTP_400_BAD_REQUEST,

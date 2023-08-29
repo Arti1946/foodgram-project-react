@@ -101,6 +101,10 @@ class Follow(models.Model):
         verbose_name="Автор",
     )
 
+    class Meta:
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
+
     def __str__(self) -> str:
         return f"{self.user} {self.author}"
 
@@ -129,6 +133,8 @@ class Favorite(models.Model):
                 name="unique_user_recipe",
             )
         ]
+        verbose_name = "Избранное"
+        verbose_name_plural = "Избранные"
 
     def __str__(self) -> str:
         return {self.recipe}
@@ -151,6 +157,10 @@ class ShopingCart(models.Model):
         verbose_name="Рецепт",
     )
 
+    class Meta:
+        verbose_name = "Список покупок"
+        verbose_name_plural = "Списки покупок"
+
     def __str__(self):
         return self.recipe
 
@@ -162,7 +172,7 @@ class RecipeIngredient(models.Model):
     ingredients = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
-        related_name="recipes_ingredient",
+        related_name="recipes_ingredients",
     )
     amount = models.PositiveSmallIntegerField(
         blank=False,
@@ -176,6 +186,8 @@ class RecipeIngredient(models.Model):
                 name="unique_recipes_ingredients",
             )
         ]
+        verbose_name = "Рецепт и ингредиент"
+        verbose_name_plural = "Рецепты и ингредиенты"
 
 
 class RecipeTag(models.Model):
@@ -185,6 +197,10 @@ class RecipeTag(models.Model):
     tag = models.ForeignKey(
         Tag, on_delete=models.CASCADE, related_name="recipe_tags"
     )
+
+    class Meta:
+        verbose_name = "Рецепт и Тег"
+        verbose_name_plural = "Рецепты и Теги"
 
     def __str__(self):
         return self.recipe

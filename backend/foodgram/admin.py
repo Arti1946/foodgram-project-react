@@ -1,8 +1,7 @@
 from django.contrib import admin
 
 from .models import (
-    Favorite, Follow, Ingredient, Recipe, RecipeIngredient, RecipeTag,
-    ShopingCart, Tag,
+    Favorite, Follow, Ingredient, Recipe, RecipeIngredient, ShopingCart, Tag,
 )
 
 
@@ -12,7 +11,7 @@ class IngredientAdmin(admin.ModelAdmin):
         "name",
         "measurement_unit",
     )
-    list_filter = ("name",)
+    search_fields = ("name",)
     empty_value_display = "-пусто-"
 
 
@@ -23,11 +22,8 @@ class RecipeAdmin(admin.ModelAdmin):
         "author",
         "count_recipe",
     )
-    list_filter = (
-        "name",
-        "author",
-        "tags",
-    )
+    list_filter = ("author", "tags")
+    search_fields = "name"
     empty_value_display = "-пусто-"
 
     @admin.display(description="count_recipe")
@@ -72,8 +68,7 @@ class TagAdmin(admin.ModelAdmin):
         "color",
         "slug",
     )
-    list_filter = ("slug",)
-    search_fields = ("name",)
+    search_fields = ("name", "slug")
     empty_value_display = "-пусто-"
 
 
@@ -84,24 +79,11 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
         "recipes",
         "amount",
     )
-    list_filter = ("ingredients", "recipes")
+    search_fields = ("ingredients", "recipes")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("ingredients", "recipe")
-
-
-@admin.register(RecipeTag)
-class RecipeTagAdmin(admin.ModelAdmin):
-    list_display = (
-        "tag",
-        "recipe",
-    )
-    list_filter = ("tag", "recipe")
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.select_related("tag", "recipe")
+        return qs.select_related("ingredients", "recipes")
 
 
 @admin.register(ShopingCart)
@@ -110,7 +92,7 @@ class ShopingCartAdmin(admin.ModelAdmin):
         "user",
         "recipe",
     )
-    list_filter = ("user", "recipe")
+    search_fields = ("user", "recipe")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

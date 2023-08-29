@@ -1,7 +1,7 @@
 import base64
 
 import webcolors
-from djoser.serializers import UserSerializer
+from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers
 
 from django.core.files.base import ContentFile
@@ -32,7 +32,7 @@ class IngredientsSerializer(serializers.ModelSerializer):
 
 
 class ResIngSerializator(serializers.ModelSerializer):
-    amount = serializers.IntegerField(source="recipes_ingredient__amount")
+    amount = serializers.IntegerField(source="recipes_ingredients__amount")
 
     class Meta:
         model = Ingredient
@@ -44,6 +44,7 @@ class RecipesIngredientsSerializer(serializers.ModelSerializer):
     measurement_unit = serializers.CharField(
         source="ingredients.measurement_unit"
     )
+    id = serializers.IntegerField(source="ingredients.id")
 
     class Meta:
         fields = ("id", "name", "measurement_unit", "amount")
@@ -120,9 +121,12 @@ class RecipeSerializerPost(serializers.ModelSerializer):
         return RecipeSerializer(recipe, context=context).data
 
     def update(self, instance, validated_data):
-        tags = validated_data.get("tags", instance.tags)
+        tags = validated_data.pop("tags")
         ingredients = validated_data.pop("ingredients")
+        instance = super().update(instance, validated_data)
         instance.ingredients.clear()
+        instance.tags.clear()
+        instance.tags.set(tags)
         for ingredient in ingredients:
             amount = ingredient.pop("amount")
             current_ingredient = get_object_or_404(
@@ -131,8 +135,8 @@ class RecipeSerializerPost(serializers.ModelSerializer):
             RecipeIngredient.objects.create(
                 ingredients=current_ingredient, recipes=instance, amount=amount
             )
-        instance.tags.set(tags)
-        return super().update(instance, validated_data)
+        instance.save()
+        return instance
 
 
 class CustomUserSerializer(UserSerializer):
@@ -146,10 +150,8 @@ class CustomUserSerializer(UserSerializer):
             "last_name",
             "is_subscribed",
             "id",
-            "password",
         )
         model = CustomUser
-        extra_kwargs = {"password": {"write_only": True}}
 
     def get_is_subscribed(self, obj):
         request = self.context.get("request")
@@ -159,6 +161,20 @@ class CustomUserSerializer(UserSerializer):
                 return False
             return Follow.objects.filter(author=obj, user=user).exists()
         return False
+
+
+class CustomUserPostSerializer(UserCreateSerializer):
+    class Meta:
+        model = CustomUser
+        fields = (
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_subscribed",
+            "id",
+            "password",
+        )
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -225,7 +241,7 @@ class FollowRecipeSerializer(serializers.ModelSerializer):
 
 class FollowSerializerPost(serializers.ModelSerializer):
     user = CustomUserSerializer(read_only=True)
-    author = serializers.PrimaryKeyRelatedField(read_only=True)
+    author = CustomUserSerializer(read_only=True)
 
     class Meta:
         fields = ("user", "author")
@@ -233,7 +249,7 @@ class FollowSerializerPost(serializers.ModelSerializer):
 
     def to_representation(self, follow):
         request = self.context.get("request")
-        context = {"request": request, "query_params": self.context}
+        context = {"request": request}
         return FollowSerializer(follow, context=context).data
 
 
