@@ -23,7 +23,7 @@ class RecipeAdmin(admin.ModelAdmin):
         "count_recipe",
     )
     list_filter = ("author", "tags")
-    search_fields = "name"
+    search_fields = ("name",)
     empty_value_display = "-пусто-"
 
     @admin.display(description="count_recipe")
