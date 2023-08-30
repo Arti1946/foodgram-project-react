@@ -79,7 +79,7 @@ class RecipeIngredientAdmin(admin.ModelAdmin):
         "recipes",
         "amount",
     )
-    search_fields = ("ingredients", "recipes")
+    search_fields = ("ingredients__name", "recipes__name")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -92,7 +92,7 @@ class ShopingCartAdmin(admin.ModelAdmin):
         "user",
         "recipe",
     )
-    search_fields = ("user", "recipe")
+    search_fields = ("user__username", "recipe__name")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
